@@ -68,7 +68,7 @@
 
                         // Create ONNX inference session
                         this.session = await ort.InferenceSession.create(modelArrayBuffer, {
-                            executionProviders: ['wasm', 'webgl']
+                            executionProviders: ['webgpu']
                         });
 
                         return this;
