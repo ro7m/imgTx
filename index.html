@@ -2,8 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>imageTxR</title>
-    <script src="https://cdn.jsdelivr.net/npm/@xenova/transformers"></script>
+    <title>imgtxML</title>
     <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.15.0/dist/onnx.min.js"></script>
     <style>
         body { 
@@ -25,7 +24,7 @@
     </style>
 </head>
 <body>
-    <h1>image-to-text</h1>
+    <h1>imgTx Model</h1>
     
     <input type="file" id="imageUpload" accept="image/*">
     
@@ -35,33 +34,21 @@
     
     <div id="status"></div>
     
-    <h2>extract Results:</h2>
+    <h2>OCR Results:</h2>
     <pre id="results"></pre>
 
-    <script type="module">
-        import { env } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers';
-
-        // Custom OCR class for local model loading
-        class LocalONNXOCR {
+    <script>
+        class MGPStrOCR {
             constructor() {
-                this.model = null;
                 this.session = null;
+                this.modelUrl = 'https://huggingface.co/onnx-community/mgp-str-base/resolve/main/onnx/model.onnx?download=true';
             }
 
             async initialize() {
-                // Load ONNX model directly
                 try {
-                    // Assuming you have an ONNX model in the local folder
-                    const modelResponse = await fetch('./onnx/model.onnx');
-                    const modelArrayBuffer = await modelResponse.arrayBuffer();
-
-                    // Load configuration
-                    const configResponse = await fetch('./config.json');
-                    const config = await configResponse.json();
-
-                    // Load tokenizer configuration
-                    const tokenizerConfigResponse = await fetch('./tokenizer_config.json');
-                    const tokenizerConfig = await tokenizerConfigResponse.json();
+                    // Fetch the model directly from URL
+                    const response = await fetch(this.modelUrl);
+                    const modelArrayBuffer = await response.arrayBuffer();
 
                     // Create ONNX inference session
                     this.session = await ort.InferenceSession.create(modelArrayBuffer, {
@@ -155,10 +142,10 @@
         let ocrProcessor;
         (async () => {
             try {
-                statusDiv.textContent = 'Loading local ONNX model...';
-                ocrProcessor = new LocalONNXOCR();
+                statusDiv.textContent = 'Loading ONNX model from URL...';
+                ocrProcessor = new MGPStrOCR();
                 await ocrProcessor.initialize();
-                statusDiv.textContent = 'Local model ready!';
+                statusDiv.textContent = 'Model ready!';
             } catch (error) {
                 statusDiv.textContent = `Model load error: ${error.message}`;
                 console.error(error);
