@@ -2,47 +2,122 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Image-to-text</title>
+    <title>imgTxt</title>
+    <script src="https://cdn.jsdelivr.net/npm/@xenova/transformers"></script>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 800px; 
+            margin: 0 auto; 
+            padding: 20px; 
         }
-        .container {
-            text-align: center;
-            max-width: 600px;
-            width: 100%;
+        #preview { 
+            max-width: 100%; 
+            margin: 20px 0; 
         }
-        .spinner {
-            display: none;
-            border: 4px solid rgba(0, 0, 0, 0.1);
-            border-left-color: #000;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        .result {
-            margin-top: 20px;
+        #results {
+            white-space: pre-wrap;
+            background-color: #f4f4f4;
+            padding: 10px;
+            border-radius: 5px;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Image to text @2</h1>
-        <input type="file" id="imageUpload" accept="image/*">
-        <div class="spinner" id="spinner"></div>
-        <div id="result" class="result"></div>
+    <h1>img-text-to-text</h1>
+    
+    <input type="file" id="imageUpload" accept="image/*">
+    
+    <div>
+        <img id="preview" style="display:none;">
     </div>
-    <script src="dist/bundle.js"></script>
+    
+    <div id="status"></div>
+    
+    <h2>text on the page:</h2>
+    <pre id="results"></pre>
+
+    <script type="module">
+        // Import transformers (for modern browsers)
+        import { pipeline } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers';
+
+        class OCRProcessor {
+            static async initialize() {
+                // Load the OCR pipeline
+                this.ocr = await pipeline('ocr', 'onnx-community/mgp-str-base');
+                return this;
+            }
+
+            static async processImage(imageFile) {
+                try {
+                    // Perform OCR
+                    const result = await this.ocr(imageFile);
+                    
+                    return {
+                        fullText: result.text,
+                        confidence: result.confidence,
+                        boxes: result.boxes
+                    };
+                } catch (error) {
+                    console.error('OCR Processing Error:', error);
+                    throw error;
+                }
+            }
+        }
+
+        // DOM Elements
+        const imageUpload = document.getElementById('imageUpload');
+        const preview = document.getElementById('preview');
+        const statusDiv = document.getElementById('status');
+        const resultsDiv = document.getElementById('results');
+
+        // Initialize OCR Pipeline
+        let ocrProcessor;
+        (async () => {
+            try {
+                statusDiv.textContent = 'Loading OCR model...';
+                ocrProcessor = await OCRProcessor.initialize();
+                statusDiv.textContent = 'OCR model ready!';
+            } catch (error) {
+                statusDiv.textContent = `Model load error: ${error.message}`;
+            }
+        })();
+
+        // File Upload Event Listener
+        imageUpload.addEventListener('change', async (event) => {
+            const file = event.target.files[0];
+            
+            if (!file) return;
+
+            // Clear previous results
+            resultsDiv.textContent = '';
+            statusDiv.textContent = '';
+
+            // Show preview
+            preview.src = URL.createObjectURL(file);
+            preview.style.display = 'block';
+
+            try {
+                // Update status
+                statusDiv.textContent = 'Processing image...';
+
+                // Perform OCR
+                const result = await OCRProcessor.processImage(file);
+
+                // Display results
+                resultsDiv.textContent = JSON.stringify({
+                    fullText: result.fullText,
+                    confidence: result.confidence,
+                    boxCount: result.boxes.length
+                }, null, 2);
+
+                // Update status
+                statusDiv.textContent = 'OCR Complete!';
+            } catch (error) {
+                statusDiv.textContent = `OCR Error: ${error.message}`;
+                console.error(error);
+            }
+        });
+    </script>
 </body>
 </html>
