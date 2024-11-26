@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Scene Text Recognition</title>
+    <script type="importmap">
+    {
+        "imports": {
+            "@huggingface/transformers": "https://cdn.jsdelivr.net/npm/@huggingface/transformers@0.5.4/dist/transformers.min.js"
+        }
+    }
+    </script>
+</head>
+<body>
+    <h1>Scene Text Recognition</h1>
+    <div id="output"></div>
+
+    <script type="module">
+        import { MgpstrForSceneTextRecognition, MgpstrProcessor, RawImage } from '@huggingface/transformers';
+
+        async function runTextRecognition() {
+            try {
+                const outputDiv = document.getElementById('output');
+                outputDiv.textContent = 'Loading model...';
+
+                const model_id = 'onnx-community/mgp-str-base';
+                const model = await MgpstrForSceneTextRecognition.from_pretrained(model_id);
+                const processor = await MgpstrProcessor.from_pretrained(model_id);
+
+                // Load image from the IIIT-5k dataset
+                const url = "https://i.postimg.cc/ZKwLg2Gw/367-14.png";
+                const image = await RawImage.read(url);
+
+                // Preprocess the image
+                const result = await processor(image);
+
+                // Perform inference
+                const outputs = await model(result);
+
+                // Decode the model outputs
+                const generated_text = processor.batch_decode(outputs.logits).generated_text;
+                
+                outputDiv.textContent = `Recognized Text: ${generated_text}`;
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('output').textContent = `Error: ${error.message}`;
+            }
+        }
+
+        runTextRecognition();
+    </script>
+</body>
+</html>
