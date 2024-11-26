@@ -2,8 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Image text to text</title>
-    <script src="https://cdn.jsdelivr.net/npm/@xenova/transformers@2.6.0/dist/transformers.min.js"></script>
+    <title>Scene Text Recognition</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -40,7 +39,7 @@
     </style>
 </head>
 <body>
-    <h1>img-to-text</h1>
+    <h1>Scene Text Recognition</h1>
     
     <div class="loading-container">
         <div id="modelLoadingStatus">
@@ -62,9 +61,16 @@
     
     <div id="output"></div>
 
-    <script>
-        // Use the Xenova/transformers library instead
-        const { pipeline } = transformers;
+    <script type="importmap">
+    {
+        "imports": {
+            "@xenova/transformers": "https://cdn.jsdelivr.net/npm/@xenova/transformers@2.6.0/dist/transformers.esm.min.js"
+        }
+    }
+    </script>
+    <script type="module">
+        // Import transformers as an ES module
+        import * as transformers from '@xenova/transformers';
 
         // DOM Elements
         const imageUpload = document.getElementById('imageUpload');
@@ -113,7 +119,7 @@
                 showModelLoading();
 
                 // Use scene text recognition pipeline
-                recognizer = await pipeline(
+                recognizer = await transformers.pipeline(
                     'image-to-text', 
                     'Xenova/mgp-str-base'
                 );
@@ -140,6 +146,11 @@
                 // Create image preview
                 imagePreview.src = URL.createObjectURL(imageFile);
                 imagePreview.style.display = 'block';
+
+                // Wait for image to load
+                await new Promise((resolve) => {
+                    imagePreview.onload = resolve;
+                });
 
                 // Process image
                 const result = await recognizer(imagePreview.src);
