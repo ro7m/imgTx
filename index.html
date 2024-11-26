@@ -2,8 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>imgTxt</title>
+    <title>imageTxR</title>
     <script src="https://cdn.jsdelivr.net/npm/@xenova/transformers"></script>
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.15.0/dist/onnx.min.js"></script>
     <style>
         body { 
             font-family: Arial, sans-serif; 
@@ -24,7 +25,7 @@
     </style>
 </head>
 <body>
-    <h1>img-text-to-text</h1>
+    <h1>image-to-text</h1>
     
     <input type="file" id="imageUpload" accept="image/*">
     
@@ -34,34 +35,113 @@
     
     <div id="status"></div>
     
-    <h2>text on the page:</h2>
+    <h2>extract Results:</h2>
     <pre id="results"></pre>
 
     <script type="module">
-        // Import transformers (for modern browsers)
-        import { pipeline } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers';
+        import { env } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers';
 
-        class OCRProcessor {
-            static async initialize() {
-                // Load the OCR pipeline
-                this.ocr = await pipeline('image-to-text', 'onnx-community/mgp-str-base');
-                return this;
+        // Custom OCR class for local model loading
+        class LocalONNXOCR {
+            constructor() {
+                this.model = null;
+                this.session = null;
             }
 
-            static async processImage(imageFile) {
+            async initialize() {
+                // Load ONNX model directly
                 try {
-                    // Perform OCR
-                    const result = await this.ocr(imageFile);
-                    
-                    return {
-                        fullText: result.text,
-                        confidence: result.confidence,
-                        boxes: result.boxes
+                    // Assuming you have an ONNX model in the local folder
+                    const modelResponse = await fetch('./onnx/model.onnx');
+                    const modelArrayBuffer = await modelResponse.arrayBuffer();
+
+                    // Load configuration
+                    const configResponse = await fetch('./config.json');
+                    const config = await configResponse.json();
+
+                    // Load tokenizer configuration
+                    const tokenizerConfigResponse = await fetch('./tokenizer_config.json');
+                    const tokenizerConfig = await tokenizerConfigResponse.json();
+
+                    // Create ONNX inference session
+                    this.session = await ort.InferenceSession.create(modelArrayBuffer, {
+                        executionProviders: ['wasm', 'webgl']
+                    });
+
+                    return this;
+                } catch (error) {
+                    console.error('Model initialization error:', error);
+                    throw error;
+                }
+            }
+
+            async processImage(imageFile) {
+                if (!this.session) {
+                    throw new Error('Model not initialized');
+                }
+
+                try {
+                    // Convert image to tensor
+                    const imageTensor = await this.preprocessImage(imageFile);
+
+                    // Prepare inputs for the model
+                    const feeds = {
+                        'input': imageTensor
                     };
+
+                    // Run inference
+                    const results = await this.session.run(feeds);
+
+                    // Process and return results
+                    return this.processResults(results);
                 } catch (error) {
                     console.error('OCR Processing Error:', error);
                     throw error;
                 }
+            }
+
+            async preprocessImage(imageFile) {
+                // Create image element and load file
+                const img = document.createElement('img');
+                img.src = URL.createObjectURL(imageFile);
+                
+                await new Promise((resolve) => {
+                    img.onload = resolve;
+                });
+
+                // Create canvas for preprocessing
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // Resize and preprocess image
+                canvas.width = 224;  // Adjust based on model input size
+                canvas.height = 224;
+                ctx.drawImage(img, 0, 0, 224, 224);
+
+                // Get image data
+                const imageData = ctx.getImageData(0, 0, 224, 224);
+                
+                // Convert to float32 tensor
+                const data = new Float32Array(imageData.data.length / 4 * 3);
+                for (let i = 0; i < imageData.data.length / 4; i++) {
+                    data[i * 3] = (imageData.data[i * 4] / 255 - 0.5) * 2;     // R
+                    data[i * 3 + 1] = (imageData.data[i * 4 + 1] / 255 - 0.5) * 2;  // G
+                    data[i * 3 + 2] = (imageData.data[i * 4 + 2] / 255 - 0.5) * 2;  // B
+                }
+
+                // Create ONNX tensor
+                return new ort.Tensor('float32', data, [1, 3, 224, 224]);
+            }
+
+            processResults(results) {
+                // This will depend on your specific model's output
+                // You'll need to adapt this based on your model's actual output
+                console.log('Raw results:', results);
+
+                return {
+                    raw: results,
+                    message: 'Results processing needs customization'
+                };
             }
         }
 
@@ -71,15 +151,17 @@
         const statusDiv = document.getElementById('status');
         const resultsDiv = document.getElementById('results');
 
-        // Initialize OCR Pipeline
+        // Initialize OCR
         let ocrProcessor;
         (async () => {
             try {
-                statusDiv.textContent = 'Loading OCR model...';
-                ocrProcessor = await OCRProcessor.initialize();
-                statusDiv.textContent = 'OCR model ready!';
+                statusDiv.textContent = 'Loading local ONNX model...';
+                ocrProcessor = new LocalONNXOCR();
+                await ocrProcessor.initialize();
+                statusDiv.textContent = 'Local model ready!';
             } catch (error) {
                 statusDiv.textContent = `Model load error: ${error.message}`;
+                console.error(error);
             }
         })();
 
@@ -102,19 +184,15 @@
                 statusDiv.textContent = 'Processing image...';
 
                 // Perform OCR
-                const result = await OCRProcessor.processImage(file);
+                const result = await ocrProcessor.processImage(file);
 
                 // Display results
-                resultsDiv.textContent = JSON.stringify({
-                    fullText: result.fullText,
-                    confidence: result.confidence,
-                    boxCount: result.boxes.length
-                }, null, 2);
+                resultsDiv.textContent = JSON.stringify(result, null, 2);
 
                 // Update status
-                statusDiv.textContent = 'OCR Complete!';
+                statusDiv.textContent = 'Processing Complete!';
             } catch (error) {
-                statusDiv.textContent = `OCR Error: ${error.message}`;
+                statusDiv.textContent = `Processing Error: ${error.message}`;
                 console.error(error);
             }
         });
