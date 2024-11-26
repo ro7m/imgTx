@@ -16,11 +16,16 @@
     <div class="container mx-auto max-w-md p-6 bg-white rounded-xl shadow-lg">
         <h1 class="text-2xl font-bold mb-4 text-center">OCR Text Extractor</h1>
         
+        <div id="libraryStatus" class="mb-4 text-center text-yellow-600">
+            Loading Transformers Library...
+        </div>
+        
         <input 
             type="file" 
             id="imageUpload" 
             accept="image/*" 
             class="mb-4 w-full p-2 border rounded"
+            disabled
         >
         
         <div id="imagePreview" class="mb-4 text-center">
@@ -47,6 +52,7 @@
 
     <script>
         // DOM Elements
+        const libraryStatus = document.getElementById('libraryStatus');
         const imageUpload = document.getElementById('imageUpload');
         const previewImg = document.getElementById('previewImg');
         const processBtn = document.getElementById('processBtn');
@@ -56,19 +62,50 @@
         // State
         let pipeline = null;
 
+        // Wait for transformers library to load
+        function waitForTransformers() {
+            return new Promise((resolve, reject) => {
+                const checkInterval = setInterval(() => {
+                    if (window.transformers) {
+                        clearInterval(checkInterval);
+                        resolve(window.transformers);
+                    }
+                }, 100);
+
+                // Timeout after 10 seconds
+                setTimeout(() => {
+                    clearInterval(checkInterval);
+                    reject(new Error('Transformers library failed to load'));
+                }, 10000);
+            });
+        }
+
         // Initialize the OCR pipeline
         async function initPipeline() {
             try {
-                console.log('Initializing OCR pipeline...');
+                // Ensure transformers is loaded
+                await waitForTransformers();
+                
+                libraryStatus.textContent = 'Initializing OCR Pipeline...';
+                libraryStatus.classList.remove('text-yellow-600');
+                libraryStatus.classList.add('text-blue-600');
+
+                // Initialize pipeline
                 pipeline = await transformers.pipeline(
                     'image-to-text', 
                     'mgp-str-base'
                 );
-                processBtn.disabled = false;
-                console.log('Pipeline initialized successfully');
+
+                // Enable UI elements
+                imageUpload.disabled = false;
+                libraryStatus.textContent = 'OCR Library Ready!';
+                libraryStatus.classList.remove('text-blue-600');
+                libraryStatus.classList.add('text-green-600');
             } catch (error) {
                 console.error('Pipeline initialization error:', error);
-                resultText.textContent = `Initialization Error: ${error.message}`;
+                libraryStatus.textContent = `Error: ${error.message}`;
+                libraryStatus.classList.remove('text-blue-600');
+                libraryStatus.classList.add('text-red-600');
             }
         }
 
