@@ -118,11 +118,11 @@
 
             try {
                 // Fetch image blob
-                const response = await fetch(previewImg.src);
-                const imageBlob = await response.blob();
+                //const response = await fetch(previewImg.src);
+                //const imageBlob = await response.blob();
 
                 // Perform OCR
-                const result = await pipeline(imageBlob);
+                const result = await pipeline(previewImg.src);
                 
                 // Display results
                 resultText.textContent = JSON.stringify(result, null, 2);
