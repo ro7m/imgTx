@@ -50,13 +50,7 @@
     </div>
 
     <script type="module">
-        // Import Transformers directly as a module
-        import { MgpstrForSceneTextRecognition, MgpstrProcessor} from 'https://cdn.jsdelivr.net/npm/@ro7m/ttransform.js@3.0.2/+esm';
-
-
-        const model_id = 'onnx-community/mgp-str-base';
-
-
+        import { pipeline } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.6.0/+esm';
 
         // DOM Elements
         const libraryStatus = document.getElementById('libraryStatus');
@@ -67,8 +61,7 @@
         const resultText = document.getElementById('resultText');
 
         // State
-        let model = null;
-        let processor = null;
+        let ocr = null;
 
         // Initialize the OCR pipeline
         async function initPipeline() {
@@ -77,9 +70,8 @@
                 libraryStatus.classList.remove('text-yellow-600');
                 libraryStatus.classList.add('text-blue-600');
 
-               model = await MgpstrForSceneTextRecognition.from_pretrained(model_id);
-               processor = await MgpstrProcessor.from_pretrained(model_id);
-
+                // Use a pre-trained OCR model
+                ocr = await pipeline('ocr', 'Xenova/trocr-small-printed');
 
                 // Enable UI elements
                 imageUpload.disabled = false;
@@ -110,7 +102,7 @@
 
         // Process image
         processBtn.addEventListener('click', async function() {
-            if (!processor) {
+            if (!ocr) {
                 alert('OCR pipeline not initialized. Please wait.');
                 return;
             }
@@ -121,18 +113,11 @@
             processBtn.disabled = true;
 
             try {
-                // Fetch image blob
-                const response = await fetch(previewImg.src);
-                const imageBlob = await response.blob();
-
-
-                // Perform OCR
-                const result = await processor(imageBlob);
-                const outputs = await model(result);
-                const generated_text = processor.batch_decode(outputs.logits).generated_text
-                console.log(generated_text);
+                // Perform OCR directly on the image
+                const result = await ocr(previewImg.src);
+                
                 // Display results
-                resultText.textContent = JSON.stringify(generated_text, null, 2);
+                resultText.textContent = JSON.stringify(result, null, 2);
             } catch (error) {
                 console.error('OCR Processing Error:', error);
                 resultText.textContent = `Error: ${error.message}`;
