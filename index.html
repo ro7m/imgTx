@@ -2,22 +2,47 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Test Pipeline</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scene Text Recognition</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            text-align: center;
+            max-width: 600px;
+            width: 100%;
+        }
+        .spinner {
+            display: none;
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #000;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .result {
+            margin-top: 20px;
+        }
+    </style>
 </head>
 <body>
-    <script type="module">
-        import { pipeline } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.0/+esm';
-
-        async function testPipeline() {
-            try {
-                const recognizer = await pipeline('image-to-text', 'Xenova/mgp-str-base');
-                console.log('Pipeline loaded successfully:', recognizer);
-            } catch (error) {
-                console.error('Error loading pipeline:', error);
-            }
-        }
-
-        testPipeline();
-    </script>
+    <div class="container">
+        <h1>Scene Text Recognition</h1>
+        <input type="file" id="imageUpload" accept="image/*">
+        <div class="spinner" id="spinner"></div>
+        <div id="result" class="result"></div>
+    </div>
+    <script src="app.js"></script>
 </body>
 </html>
