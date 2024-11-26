@@ -44,7 +44,7 @@
         class OCRProcessor {
             static async initialize() {
                 // Load the OCR pipeline
-                this.ocr = await pipeline('ocr', 'onnx-community/mgp-str-base');
+                this.ocr = await pipeline('image-to-text', 'onnx-community/mgp-str-base');
                 return this;
             }
 
