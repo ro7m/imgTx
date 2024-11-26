@@ -2,205 +2,123 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>img-to-text</title>
-    <!-- Include ONNX Runtime Web -->
-    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.15.0/dist/ort.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OCR Text Extraction</title>
+    <script src="https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.2/dist/transformers.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { 
-            font-family: Arial, sans-serif; 
-            max-width: 800px; 
-            margin: 0 auto; 
-            padding: 20px; 
-        }
-        #preview { 
-            max-width: 100%; 
-            margin: 20px 0; 
-        }
-        #results {
-            white-space: pre-wrap;
-            background-color: #f4f4f4;
-            padding: 10px;
-            border-radius: 5px;
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
         }
     </style>
 </head>
-<body>
-    <h1>imgtext-to-text</h1>
-    
-    <input type="file" id="imageUpload" accept="image/*">
-    
-    <div>
-        <img id="preview" style="display:none;">
+<body class="bg-gray-100 min-h-screen flex items-center justify-center">
+    <div class="container mx-auto max-w-md p-6 bg-white rounded-xl shadow-lg">
+        <h1 class="text-2xl font-bold mb-4 text-center">OCR Text Extractor</h1>
+        
+        <input 
+            type="file" 
+            id="imageUpload" 
+            accept="image/*" 
+            class="mb-4 w-full p-2 border rounded"
+        >
+        
+        <div id="imagePreview" class="mb-4 text-center">
+            <img id="previewImg" class="max-w-full max-h-64 mx-auto hidden" />
+        </div>
+        
+        <button 
+            id="processBtn" 
+            class="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600 disabled:opacity-50"
+            disabled
+        >
+            Process Image
+        </button>
+        
+        <div id="loadingIndicator" class="hidden mt-4 text-center">
+            <p class="text-blue-600">Processing image...</p>
+        </div>
+        
+        <div id="resultContainer" class="mt-4 bg-gray-100 p-4 rounded">
+            <h2 class="font-bold mb-2">Results:</h2>
+            <pre id="resultText" class="whitespace-pre-wrap break-words"></pre>
+        </div>
     </div>
-    
-    <div id="status"></div>
-    
-    <h2>Extracted Data:</h2>
-    <pre id="results"></pre>
 
     <script>
-        // Ensure ort is available globally
-        window.onload = function() {
-            // If ort is not defined, provide a fallback
-            if (typeof ort === 'undefined') {
-                console.error('ONNX Runtime Web not loaded correctly');
-                document.getElementById('status').textContent = 'Failed to load ONNX Runtime. Please check your internet connection.';
+        // DOM Elements
+        const imageUpload = document.getElementById('imageUpload');
+        const previewImg = document.getElementById('previewImg');
+        const processBtn = document.getElementById('processBtn');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const resultText = document.getElementById('resultText');
+
+        // State
+        let pipeline = null;
+
+        // Initialize the OCR pipeline
+        async function initPipeline() {
+            try {
+                console.log('Initializing OCR pipeline...');
+                pipeline = await transformers.pipeline(
+                    'image-to-text', 
+                    'mgp-str-base'
+                );
+                processBtn.disabled = false;
+                console.log('Pipeline initialized successfully');
+            } catch (error) {
+                console.error('Pipeline initialization error:', error);
+                resultText.textContent = `Initialization Error: ${error.message}`;
+            }
+        }
+
+        // Image preview
+        imageUpload.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    previewImg.src = event.target.result;
+                    previewImg.classList.remove('hidden');
+                    processBtn.disabled = false;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Process image
+        processBtn.addEventListener('click', async function() {
+            if (!pipeline) {
+                alert('OCR pipeline not initialized. Please wait.');
                 return;
             }
 
-            class MGPStrOCR {
-                constructor() {
-                    this.session = null;
-                    this.modelUrl = 'https://huggingface.co/onnx-community/mgp-str-base/resolve/main/onnx/model_q4f16.onnx?download=true';
-                }
+            // Reset UI
+            resultText.textContent = '';
+            loadingIndicator.classList.remove('hidden');
+            processBtn.disabled = true;
 
-                async initialize() {
-                    try {
-                        // Fetch the model directly from URL
-                        const response = await fetch(this.modelUrl);
-                        
-                        // Check if fetch was successful
-                        if (!response.ok) {
-                            throw new Error(`HTTP error! status: ${response.status}`);
-                        }
-                        
-                        const modelArrayBuffer = await response.arrayBuffer();
+            try {
+                // Fetch image blob
+                const response = await fetch(previewImg.src);
+                const imageBlob = await response.blob();
 
-                        // Create ONNX inference session
-                        this.session = await ort.InferenceSession.create(modelArrayBuffer, {
-                            executionProviders: ['cpu','wasm']
-                        });
-
-                        return this;
-                    } catch (error) {
-                        console.error('Model initialization error:', error);
-                        throw error;
-                    }
-                }
-
-                async processImage(imageFile) {
-                    if (!this.session) {
-                        throw new Error('Model not initialized');
-                    }
-
-                    try {
-                        // Convert image to tensor
-                        const imageTensor = await this.preprocessImage(imageFile);
-
-                        // Prepare inputs for the model
-                        const feeds = {
-                            'input': imageTensor
-                        };
-
-                        // Run inference
-                        const results = await this.session.run(feeds);
-
-                        // Process and return results
-                        return this.processResults(results);
-                    } catch (error) {
-                        console.error('OCR Processing Error:', error);
-                        throw error;
-                    }
-                }
-
-                async preprocessImage(imageFile) {
-                    // Create image element and load file
-                    const img = document.createElement('img');
-                    img.src = URL.createObjectURL(imageFile);
-                    
-                    await new Promise((resolve, reject) => {
-                        img.onload = resolve;
-                        img.onerror = reject;
-                    });
-
-                    // Create canvas for preprocessing
-                    const canvas = document.createElement('canvas');
-                    const ctx = canvas.getContext('2d');
-                    
-                    // Resize and preprocess image
-                    canvas.width = 128; 
-                    canvas.height = 32;
-                    ctx.drawImage(img, 0, 0, 32, 128);
-
-                    // Get image data
-                    const imageData = ctx.getImageData(0, 0, 32, 128);
-                    
-                    // Convert to float32 tensor
-                    const data = new Float32Array(imageData.data.length / 4 * 3);
-                    for (let i = 0; i < imageData.data.length / 4; i++) {
-                        data[i * 3] = (imageData.data[i * 4] / 255 - 0.5) * 2;     // R
-                        data[i * 3 + 1] = (imageData.data[i * 4 + 1] / 255 - 0.5) * 2;  // G
-                        data[i * 3 + 2] = (imageData.data[i * 4 + 2] / 255 - 0.5) * 2;  // B
-                    }
-
-                    // Create ONNX tensor
-                    return new ort.Tensor('float32', data, [1, 3, 32, 128]);
-                }
-
-                processResults(results) {
-                    // Log raw results for debugging
-                    console.log('Raw inference results:', results);
-
-                    // Basic result processing
-                    return {
-                        raw: results,
-                        message: 'Results processing needs customization for this specific model'
-                    };
-                }
-            }
-
-            // DOM Elements
-            const imageUpload = document.getElementById('imageUpload');
-            const preview = document.getElementById('preview');
-            const statusDiv = document.getElementById('status');
-            const resultsDiv = document.getElementById('results');
-
-            // Initialize OCR
-            let ocrProcessor;
-            (async () => {
-                try {
-                    statusDiv.textContent = 'Loading ONNX model from URL...';
-                    ocrProcessor = new MGPStrOCR();
-                    await ocrProcessor.initialize();
-                    statusDiv.textContent = 'Model ready!';
-                } catch (error) {
-                    statusDiv.textContent = `Model load error: ${error.message}`;
-                    console.error(error);
-                }
-            })();
-
-            // File Upload Event Listener
-            imageUpload.addEventListener('change', async (event) => {
-                const file = event.target.files[0];
+                // Perform OCR
+                const result = await pipeline(imageBlob);
                 
-                if (!file) return;
+                // Display results
+                resultText.textContent = JSON.stringify(result, null, 2);
+            } catch (error) {
+                console.error('OCR Processing Error:', error);
+                resultText.textContent = `Error: ${error.message}`;
+            } finally {
+                loadingIndicator.classList.add('hidden');
+                processBtn.disabled = false;
+            }
+        });
 
-                // Clear previous results
-                resultsDiv.textContent = '';
-                statusDiv.textContent = '';
-
-                // Show preview
-                preview.src = URL.createObjectURL(file);
-                preview.style.display = 'block';
-
-                try {
-                    // Update status
-                    statusDiv.textContent = 'Processing image...';
-
-                    // Perform OCR
-                    const result = await ocrProcessor.processImage(file);
-
-                    // Display results
-                    resultsDiv.textContent = JSON.stringify(result, null, 2);
-
-                    // Update status
-                    statusDiv.textContent = 'Processing Complete!';
-                } catch (error) {
-                    statusDiv.textContent = `Processing Error: ${error.message}`;
-                    console.error(error);
-                }
-            });
-        }
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', initPipeline);
     </script>
 </body>
 </html>
