@@ -53,6 +53,11 @@
         // Import Transformers directly as a module
         import * as transformers from 'https://cdn.jsdelivr.net/npm/@ro7m/ttransform.js@3.0.2/+esm';
 
+
+        const model_id = 'onnx-community/mgp-str-base';
+
+
+
         // DOM Elements
         const libraryStatus = document.getElementById('libraryStatus');
         const imageUpload = document.getElementById('imageUpload');
@@ -62,7 +67,8 @@
         const resultText = document.getElementById('resultText');
 
         // State
-        let pipeline = null;
+        let model = null;
+        let processor = null;
 
         // Initialize the OCR pipeline
         async function initPipeline() {
@@ -71,11 +77,9 @@
                 libraryStatus.classList.remove('text-yellow-600');
                 libraryStatus.classList.add('text-blue-600');
 
-                // Initialize pipeline
-                pipeline = await transformers.pipeline(
-                    'fill-mask', 
-                    'onnx-community/mgp-str-base'
-                );
+               model = await MgpstrForSceneTextRecognition.from_pretrained(model_id);
+               processor = await MgpstrProcessor.from_pretrained(model_id);
+
 
                 // Enable UI elements
                 imageUpload.disabled = false;
@@ -106,7 +110,7 @@
 
         // Process image
         processBtn.addEventListener('click', async function() {
-            if (!pipeline) {
+            if (!processor) {
                 alert('OCR pipeline not initialized. Please wait.');
                 return;
             }
@@ -121,11 +125,14 @@
                 const response = await fetch(previewImg.src);
                 const imageBlob = await response.blob();
 
+
                 // Perform OCR
-                const result = await pipeline(imageBlob);
-                
+                const result = await processor(imageBlob);
+                const outputs = await model(result);
+                const generated_text = processor.batch_decode(outputs.logits).generated_text
+                console.log(generated_text);
                 // Display results
-                resultText.textContent = JSON.stringify(result, null, 2);
+                resultText.textContent = JSON.stringify(generated_text, null, 2);
             } catch (error) {
                 console.error('OCR Processing Error:', error);
                 resultText.textContent = `Error: ${error.message}`;
