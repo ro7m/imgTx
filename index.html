@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Scene Text Recognition</title>
+    <title>img-to-text</title>
     <script type="importmap">
     {
         "imports": {
@@ -10,26 +10,153 @@
         }
     }
     </script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+        }
+        #imagePreview {
+            max-width: 100%;
+            max-height: 400px;
+            margin: 20px 0;
+        }
+        #loadingStatus {
+            color: #666;
+            margin: 10px 0;
+        }
+        .spinner {
+            display: inline-block;
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(0,0,0,0.1);
+            border-radius: 50%;
+            border-top-color: #007bff;
+            animation: spin 1s ease-in-out infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        #imageUpload {
+            margin: 20px 0;
+        }
+        .loading-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        #modelLoadingSpinner, #imageProcessingSpinner {
+            display: none;
+        }
+    </style>
 </head>
 <body>
     <h1>Scene Text Recognition</h1>
+    
+    <div class="loading-container">
+        <div id="modelLoadingStatus">
+            <div id="modelLoadingSpinner" class="spinner"></div>
+            <p id="modelLoadingMessage">Initializing model...</p>
+        </div>
+    </div>
+
+    <input type="file" id="imageUpload" accept="image/*" disabled>
+    
+    <div class="loading-container">
+        <div id="imageProcessingStatus" style="display:none;">
+            <div id="imageProcessingSpinner" class="spinner"></div>
+            <p id="imageProcessingMessage">Processing image...</p>
+        </div>
+    </div>
+    
+    <img id="imagePreview" style="display:none;">
+    
     <div id="output"></div>
 
     <script type="module">
         import { MgpstrForSceneTextRecognition, MgpstrProcessor, RawImage } from '@huggingface/transformers';
 
-        async function runTextRecognition() {
+        let model, processor;
+        const imageUpload = document.getElementById('imageUpload');
+        const imagePreview = document.getElementById('imagePreview');
+        const modelLoadingStatus = document.getElementById('modelLoadingStatus');
+        const modelLoadingSpinner = document.getElementById('modelLoadingSpinner');
+        const modelLoadingMessage = document.getElementById('modelLoadingMessage');
+        const imageProcessingStatus = document.getElementById('imageProcessingStatus');
+        const imageProcessingSpinner = document.getElementById('imageProcessingSpinner');
+        const imageProcessingMessage = document.getElementById('imageProcessingMessage');
+        const outputDiv = document.getElementById('output');
+
+        // Update UI to show loading state
+        function showModelLoading() {
+            modelLoadingSpinner.style.display = 'block';
+            modelLoadingMessage.textContent = 'Loading AI model... (this may take a moment)';
+            imageUpload.disabled = true;
+        }
+
+        // Update UI when model is loaded
+        function hideModelLoading() {
+            modelLoadingStatus.style.display = 'none';
+            imageUpload.disabled = false;
+            imageUpload.focus();
+        }
+
+        // Show image processing state
+        function showImageProcessing() {
+            imageProcessingStatus.style.display = 'flex';
+            imageProcessingSpinner.style.display = 'block';
+            imageProcessingMessage.textContent = 'Processing image...';
+            outputDiv.textContent = '';
+        }
+
+        // Hide image processing state
+        function hideImageProcessing() {
+            imageProcessingStatus.style.display = 'none';
+        }
+
+        // Load model only once when the page loads
+        async function loadModel() {
             try {
-                const outputDiv = document.getElementById('output');
-                outputDiv.textContent = 'Loading model...';
+                showModelLoading();
 
                 const model_id = 'onnx-community/mgp-str-base';
-                const model = await MgpstrForSceneTextRecognition.from_pretrained(model_id);
-                const processor = await MgpstrProcessor.from_pretrained(model_id);
+                
+                // Simulate some loading time for better UX
+                await new Promise(resolve => setTimeout(resolve, 1000));
 
-                // Load image from the IIIT-5k dataset
-                const url = "https://i.postimg.cc/ZKwLg2Gw/367-14.png";
-                const image = await RawImage.read(url);
+                model = await MgpstrForSceneTextRecognition.from_pretrained(model_id);
+                processor = await MgpstrProcessor.from_pretrained(model_id);
+                
+                hideModelLoading();
+            } catch (error) {
+                modelLoadingMessage.textContent = `Model loading error: ${error.message}`;
+                modelLoadingSpinner.style.display = 'none';
+                console.error(error);
+            }
+        }
+
+        // Process the uploaded image
+        async function processImage(imageFile) {
+            if (!model || !processor) {
+                outputDiv.textContent = 'Model not loaded. Please wait.';
+                return;
+            }
+
+            try {
+                // Show processing state
+                showImageProcessing();
+
+                // Create image preview
+                imagePreview.src = URL.createObjectURL(imageFile);
+                imagePreview.style.display = 'block';
+
+                // Convert file to RawImage
+                const image = await RawImage.fromFile(imageFile);
 
                 // Preprocess the image
                 const result = await processor(image);
@@ -40,14 +167,28 @@
                 // Decode the model outputs
                 const generated_text = processor.batch_decode(outputs.logits).generated_text;
                 
+                // Display results
                 outputDiv.textContent = `Recognized Text: ${generated_text}`;
+                
+                // Hide processing state
+                hideImageProcessing();
             } catch (error) {
-                console.error('Error:', error);
-                document.getElementById('output').textContent = `Error: ${error.message}`;
+                outputDiv.textContent = `Error processing image: ${error.message}`;
+                hideImageProcessing();
+                console.error(error);
             }
         }
 
-        runTextRecognition();
+        // Event listener for file upload
+        imageUpload.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                processImage(file);
+            }
+        });
+
+        // Load the model when the page loads
+        loadModel();
     </script>
 </body>
 </html>
