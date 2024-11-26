@@ -50,7 +50,8 @@
     </div>
 
     <script type="module">
-        import { pipeline } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.6.0/+esm';
+        // Import Transformers directly as a module
+        import * as transformers from 'https://cdn.jsdelivr.net/npm/@ro7m/ttransform.js@3.0.2/+esm';
 
         // DOM Elements
         const libraryStatus = document.getElementById('libraryStatus');
@@ -61,7 +62,7 @@
         const resultText = document.getElementById('resultText');
 
         // State
-        let ocr = null;
+        let pipeline = null;
 
         // Initialize the OCR pipeline
         async function initPipeline() {
@@ -70,8 +71,11 @@
                 libraryStatus.classList.remove('text-yellow-600');
                 libraryStatus.classList.add('text-blue-600');
 
-                // Use a pre-trained OCR model
-                ocr = await pipeline('ocr', 'Xenova/trocr-small-printed');
+                // Initialize pipeline
+                pipeline = await transformers.pipeline(
+                    'image-to-text', 
+                    'alibaba-damo/mgp-str-base'
+                );
 
                 // Enable UI elements
                 imageUpload.disabled = false;
@@ -102,7 +106,7 @@
 
         // Process image
         processBtn.addEventListener('click', async function() {
-            if (!ocr) {
+            if (!pipeline) {
                 alert('OCR pipeline not initialized. Please wait.');
                 return;
             }
@@ -113,8 +117,12 @@
             processBtn.disabled = true;
 
             try {
-                // Perform OCR directly on the image
-                const result = await ocr(previewImg.src);
+                // Fetch image blob
+                const response = await fetch(previewImg.src);
+                const imageBlob = await response.blob();
+
+                // Perform OCR
+                const result = await pipeline(imageBlob);
                 
                 // Display results
                 resultText.textContent = JSON.stringify(result, null, 2);
