@@ -2,14 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>img-to-text</title>
-    <script type="importmap">
-    {
-        "imports": {
-            "@huggingface/transformers": "https://cdn.jsdelivr.net/npm/@huggingface/transformers@0.5.4/dist/transformers.min.js"
-        }
-    }
-    </script>
+    <title>Image text to text</title>
+    <script src="https://cdn.jsdelivr.net/npm/@xenova/transformers@2.6.0/dist/transformers.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -22,10 +16,6 @@
             max-width: 100%;
             max-height: 400px;
             margin: 20px 0;
-        }
-        #loadingStatus {
-            color: #666;
-            margin: 10px 0;
         }
         .spinner {
             display: inline-block;
@@ -41,22 +31,16 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-        #imageUpload {
-            margin: 20px 0;
-        }
         .loading-container {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
         }
-        #modelLoadingSpinner, #imageProcessingSpinner {
-            display: none;
-        }
     </style>
 </head>
 <body>
-    <h1>imgToText</h1>
+    <h1>img-to-text</h1>
     
     <div class="loading-container">
         <div id="modelLoadingStatus">
@@ -78,10 +62,11 @@
     
     <div id="output"></div>
 
-    <script type="module">
-        import { MgpstrForSceneTextRecognition, MgpstrProcessor, RawImage } from '@huggingface/transformers';
+    <script>
+        // Use the Xenova/transformers library instead
+        const { pipeline } = transformers;
 
-        let model, processor;
+        // DOM Elements
         const imageUpload = document.getElementById('imageUpload');
         const imagePreview = document.getElementById('imagePreview');
         const modelLoadingStatus = document.getElementById('modelLoadingStatus');
@@ -91,6 +76,9 @@
         const imageProcessingSpinner = document.getElementById('imageProcessingSpinner');
         const imageProcessingMessage = document.getElementById('imageProcessingMessage');
         const outputDiv = document.getElementById('output');
+
+        // Global variables to store model
+        let recognizer;
 
         // Update UI to show loading state
         function showModelLoading() {
@@ -119,19 +107,17 @@
             imageProcessingStatus.style.display = 'none';
         }
 
-        // Load model only once when the page loads
+        // Load model
         async function loadModel() {
             try {
                 showModelLoading();
 
-                const model_id = 'onnx-community/mgp-str-base';
-                
-                // Simulate some loading time for better UX
-                await new Promise(resolve => setTimeout(resolve, 1000));
+                // Use scene text recognition pipeline
+                recognizer = await pipeline(
+                    'image-to-text', 
+                    'Xenova/mgp-str-base'
+                );
 
-                model = await MgpstrForSceneTextRecognition.from_pretrained(model_id);
-                processor = await MgpstrProcessor.from_pretrained(model_id);
-                
                 hideModelLoading();
             } catch (error) {
                 modelLoadingMessage.textContent = `Model loading error: ${error.message}`;
@@ -142,7 +128,7 @@
 
         // Process the uploaded image
         async function processImage(imageFile) {
-            if (!model || !processor) {
+            if (!recognizer) {
                 outputDiv.textContent = 'Model not loaded. Please wait.';
                 return;
             }
@@ -155,20 +141,15 @@
                 imagePreview.src = URL.createObjectURL(imageFile);
                 imagePreview.style.display = 'block';
 
-                // Convert file to RawImage
-                const image = await RawImage.fromFile(imageFile);
+                // Process image
+                const result = await recognizer(imagePreview.src);
 
-                // Preprocess the image
-                const result = await processor(image);
-
-                // Perform inference
-                const outputs = await model(result);
-
-                // Decode the model outputs
-                const generated_text = processor.batch_decode(outputs.logits).generated_text;
-                
                 // Display results
-                outputDiv.textContent = `Recognized Text: ${generated_text}`;
+                if (result && result.length > 0) {
+                    outputDiv.textContent = `Recognized Text: ${result[0].generated_text}`;
+                } else {
+                    outputDiv.textContent = 'No text recognized.';
+                }
                 
                 // Hide processing state
                 hideImageProcessing();
