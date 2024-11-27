@@ -107,7 +107,7 @@
         // Process image
         processBtn.addEventListener('click', async function() {
             if (!pipeline) {
-                alert('OCR pipeline not initialized. Please wait.');
+                alert('Extraction process not initialized. Please wait....');
                 return;
             }
 
@@ -117,12 +117,10 @@
             processBtn.disabled = true;
 
             try {
-                // Fetch image blob
-                //const response = await fetch(previewImg.src);
-                //const imageBlob = await response.blob();
 
-                // Perform OCR
-                const result = await pipeline(previewImg.src);
+                const processed = await pipeline.processor(previewImg.src);
+                const outputs =  await pipeline.model(processed);
+                const result = pipeline.batch_decode(outputs.logits).generated_text
                 
                 // Display results
                 resultText.textContent = JSON.stringify(result, null, 2);
