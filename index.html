@@ -101,9 +101,12 @@
                     previewImg.src = event.target.result;
                     previewImg.classList.remove('hidden');
                     processBtn.disabled = false;
-                    image = await RawImage.read(file);
+                    const imageUrl = URL.createObjectURL(file);
+                    image = await RawImage.read(imageUrl);
             }
         });
+
+
 
         // Process image
         processBtn.addEventListener('click', async function() {
