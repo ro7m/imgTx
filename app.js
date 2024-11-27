@@ -1,4 +1,4 @@
-import { MgpstrForSceneTextRecognition, MgpstrProcessor, RawImage } from '@huggingface/transformers';
+import { MgpstrForSceneTextRecognition, MgpstrProcessor, RawImage } from '@ro7m/ttransform.js';
 
 let model;
 let processor;
