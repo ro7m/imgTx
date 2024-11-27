@@ -123,7 +123,7 @@
             processBtn.disabled = true;
 
             try {
-                const image = await RawImage.read(imageUrl);
+                const image = await RawImage.fromBlob(imageUrl);
                 const processed = await processor(image);
                 const outputs =  await model(processed);
                 const result = processor.batch_decode(outputs.logits).generated_text;
