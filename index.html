@@ -51,7 +51,7 @@
 
     <script type="module">
         // Import Transformers directly as a module
-        import * as transformers from 'https://cdn.jsdelivr.net/npm/@ro7m/ttransform.js@3.0.2/+esm';
+        import { MgpstrForSceneTextRecognition, MgpstrProcessor, RawImage } from 'https://cdn.jsdelivr.net/npm/@ro7m/ttransform.js@3.0.2/+esm';
 
         // DOM Elements
         const libraryStatus = document.getElementById('libraryStatus');
@@ -60,9 +60,12 @@
         const processBtn = document.getElementById('processBtn');
         const loadingIndicator = document.getElementById('loadingIndicator');
         const resultText = document.getElementById('resultText');
+        const model_id = 'onnx-community/mgp-str-base';
+
 
         // State
-        let pipeline = null;
+        let model = null;
+        let processor = null;
 
         // Initialize the OCR pipeline
         async function initPipeline() {
@@ -72,9 +75,10 @@
                 libraryStatus.classList.add('text-blue-600');
 
                 // Initialize pipeline
-                pipeline = await transformers.pipeline(
-                    'image-to-text', 
-                    'onnx-community/mgp-str-base'
+
+                model = await MgpstrForSceneTextRecognition.from_pretrained(model_id);
+                processor = await MgpstrProcessor.from_pretrained(model_id);
+
                 );
 
                 // Enable UI elements
@@ -89,18 +93,15 @@
                 libraryStatus.classList.add('text-red-600');
             }
         }
-
+        const image = null;
         // Image preview
         imageUpload.addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (file) {
-                const reader = new FileReader();
-                reader.onload = function(event) {
                     previewImg.src = event.target.result;
                     previewImg.classList.remove('hidden');
                     processBtn.disabled = false;
-                };
-                reader.readAsDataURL(file);
+                    image = await RawImage.read(file);
             }
         });
 
@@ -118,9 +119,9 @@
 
             try {
 
-                const processed = await pipeline.processor(previewImg.src);
-                const outputs =  await pipeline.model(processed);
-                const result = pipeline.batch_decode(outputs.logits).generated_text
+                const processed = await processor(image);
+                const outputs =  await model(processed);
+                const result = processor.batch_decode(outputs.logits).generated_text;
                 
                 // Display results
                 resultText.textContent = JSON.stringify(result, null, 2);
