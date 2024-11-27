@@ -1,9 +1,10 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ImageTx</title>
+    <title>OCR Text Extraction</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
@@ -13,7 +14,7 @@
 </head>
 <body class="bg-gray-100 min-h-screen flex items-center justify-center">
     <div class="container mx-auto max-w-md p-6 bg-white rounded-xl shadow-lg">
-        <h1 class="text-2xl font-bold mb-4 text-center">ImageText Extractor</h1>
+        <h1 class="text-2xl font-bold mb-4 text-center">OCR Text Extractor</h1>
         
         <div id="libraryStatus" class="mb-4 text-center text-yellow-600">
             Loading Libraries...
@@ -36,7 +37,7 @@
             class="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600 disabled:opacity-50"
             disabled
         >
-            Extract
+            Process Image
         </button>
         
         <div id="loadingIndicator" class="hidden mt-4 text-center">
@@ -44,14 +45,14 @@
         </div>
         
         <div id="resultContainer" class="mt-4 bg-gray-100 p-4 rounded">
-            <h2 class="font-bold mb-2">Extracted:</h2>
+            <h2 class="font-bold mb-2">Results:</h2>
             <pre id="resultText" class="whitespace-pre-wrap break-words"></pre>
         </div>
     </div>
 
     <script type="module">
         // Import Transformers directly as a module
-        import { MgpstrForSceneTextRecognition, MgpstrProcessor, RawImage } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.1.0/+esm';
+        import * as transformers from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.2/+esm';
 
         // DOM Elements
         const libraryStatus = document.getElementById('libraryStatus');
@@ -60,58 +61,54 @@
         const processBtn = document.getElementById('processBtn');
         const loadingIndicator = document.getElementById('loadingIndicator');
         const resultText = document.getElementById('resultText');
-        const model_id = 'onnx-community/mgp-str-base';
-
 
         // State
-        let model = null;
-        let processor = null;
+        let pipeline = null;
 
         // Initialize the OCR pipeline
         async function initPipeline() {
             try {
-                libraryStatus.textContent = 'Initializing Model...';
+                libraryStatus.textContent = 'Initializing OCR Pipeline...';
                 libraryStatus.classList.remove('text-yellow-600');
                 libraryStatus.classList.add('text-blue-600');
 
                 // Initialize pipeline
-
-                model = await MgpstrForSceneTextRecognition.from_pretrained(model_id);
-                processor = await MgpstrProcessor.from_pretrained(model_id);
-
-            
+                pipeline = await transformers.pipeline(
+                    'image-to-text', 
+                    'onnx-community/mgp-str-base'
+                );
 
                 // Enable UI elements
                 imageUpload.disabled = false;
-                libraryStatus.textContent = 'Model Loaded!!!!';
+                libraryStatus.textContent = 'OCR Library Ready!';
                 libraryStatus.classList.remove('text-blue-600');
                 libraryStatus.classList.add('text-green-600');
             } catch (error) {
-                console.error('Extraction error:', error);
+                console.error('Pipeline initialization error:', error);
                 libraryStatus.textContent = `Error: ${error.message}`;
                 libraryStatus.classList.remove('text-blue-600');
                 libraryStatus.classList.add('text-red-600');
             }
         }
-        
-        let imageUrl = null;
+
         // Image preview
         imageUpload.addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
                     previewImg.src = event.target.result;
                     previewImg.classList.remove('hidden');
                     processBtn.disabled = false;
-                    imageUrl = file;       
+                };
+                reader.readAsDataURL(file);
             }
         });
 
-
-
         // Process image
         processBtn.addEventListener('click', async function() {
-            if (!processor) {
-                alert('Extraction process not initialized. Please wait....');
+            if (!pipeline) {
+                alert('OCR pipeline not initialized. Please wait.');
                 return;
             }
 
@@ -121,15 +118,17 @@
             processBtn.disabled = true;
 
             try {
-                const image = await RawImage.fromBlob(imageUrl);
-                const processed = await processor(image);
-                const outputs =  await model(processed);
-                const result = processor.batch_decode(outputs.logits).generated_text;
+                // Fetch image blob
+                //const response = await fetch(previewImg.src);
+                //const imageBlob = await response.blob();
+
+                // Perform OCR
+                const result = await pipeline(previewImg.src);
                 
                 // Display results
                 resultText.textContent = JSON.stringify(result, null, 2);
             } catch (error) {
-                console.error('Processing Error:', error);
+                console.error('OCR Processing Error:', error);
                 resultText.textContent = `Error: ${error.message}`;
             } finally {
                 loadingIndicator.classList.add('hidden');
