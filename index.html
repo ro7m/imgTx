@@ -99,12 +99,16 @@
         imageUpload.addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (file) {
-                    const blob = new Blob([file], { type: "image/*" })
-                    const blobURL = URL.createObjectURL(blob)
-                    previewImg.src = blobURL;
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const dataURL = e.target.result;
+                    previewImg.src = dataURL;
                     previewImg.classList.remove('hidden');
                     processBtn.disabled = false;
-                    imageUrl = blobURL;       
+                    imageUrl = dataURL;       
+                };
+                reader.readAsDataURL(file);
+
             }
         });
 
