@@ -99,10 +99,12 @@
         imageUpload.addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (file) {
-                    previewImg.src = event.target.result;
+                    const blob = new Blob([e.files[0]], { type: "image/jpeg" })
+                    const blobURL = URL.createObjectURL(blob)
+                    previewImg.src = blobURL;
                     previewImg.classList.remove('hidden');
                     processBtn.disabled = false;
-                    imageUrl = file;       
+                    imageUrl = blobURL;       
             }
         });
 
@@ -121,7 +123,7 @@
             processBtn.disabled = true;
 
             try {
-                const image = await RawImage.fromBlob(imageUrl);
+                const image = await RawImage.read(imageUrl);
                 const processed = await processor(image);
                 const outputs =  await model(processed);
                 const result = processor.batch_decode(outputs.logits).generated_text;
