@@ -99,7 +99,7 @@
         imageUpload.addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (file) {
-                    const blob = new Blob([e.files[0]], { type: "image/jpeg" })
+                    const blob = new Blob([file], { type: "image/*" })
                     const blobURL = URL.createObjectURL(blob)
                     previewImg.src = blobURL;
                     previewImg.classList.remove('hidden');
