@@ -52,7 +52,7 @@
     <script type="module">
         // Import Transformers directly as a module
 
-        import { AutoProcessor, Qwen2VLForConditionalGeneration, RawImage } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.1.0/+esm';
+        import { AutoProcessor, AutoTokenizer, LlavaOnevisionForConditionalGeneration, RawImage } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.1.0/+esm';
 
         // DOM Elements
         const libraryStatus = document.getElementById('libraryStatus');
@@ -61,22 +61,19 @@
         const processBtn = document.getElementById('processBtn');
         const loadingIndicator = document.getElementById('loadingIndicator');
         const resultText = document.getElementById('resultText');
-        const model_id = "onnx-community/Qwen2-VL-2B-Instruct";
-
-
+        const model_id = 'llava-hf/llava-onevision-qwen2-0.5b-ov-hf';
 
         // State
         let model = null;
         let processor = null;
-        const conversation = [
-                  {
-                    role: "user",
-                    content: [
-                      { type: "image" },
-                      { type: "text", text: "what is the text in this image.Please only give the text nothing else, use line breaks as they appear in the image" },
-                    ],
-                  },
-                ];
+        let tokenizer = null;
+        const prompt = 'What is the text in the image?';
+        const messages = [
+            { role: 'system', content: 'Answer the question.' },
+            { role: 'user', content: `<image>\n${prompt}` }
+        ]
+
+
 
         // Initialize the OCR pipeline
         async function initPipeline() {
@@ -88,8 +85,19 @@
                 // Initialize pipeline
 
                 // Load processor and model
+                tokenizer = await AutoTokenizer.from_pretrained(model_id);
                 processor = await AutoProcessor.from_pretrained(model_id);
-                model = await Qwen2VLForConditionalGeneration.from_pretrained(model_id);
+                model = await LlavaOnevisionForConditionalGeneration.from_pretrained(model_id, {
+                dtype: {
+                    embed_tokens: 'fp16', // or 'fp32' or 'q8'
+                    vision_encoder: 'fp16', // or 'fp32' or 'q8'
+                    decoder_model_merged: 'q4', // or 'q8'
+                },
+                // device: 'webgpu',
+                });
+
+                
+                
                 // Enable UI elements
                 imageUpload.disabled = false;
                 libraryStatus.textContent = 'Model Loaded!!!!';
@@ -136,25 +144,30 @@
             processBtn.disabled = true;
 
             try {
-                const image = await (await RawImage.read(imageUrl)).resize(448, 448);
-                const text = processor.apply_chat_template(conversation, { add_generation_prompt: true });
-                const inputs = await processor(text, image);
+                const image = await RawImage.fromURL(imageUrl);
+                const text = tokenizer.apply_chat_template(messages, { tokenize: false, add_generation_prompt: true });
+                const text_inputs = tokenizer(text);
 
-                // Perform inference
-                const outputs = await model.generate({
-                  ...inputs,
-                  max_new_tokens: 128,
+                const vision_inputs = await processor(image);
+
+                // Generate response
+                const { past_key_values, sequences } = await model.generate({
+                    ...text_inputs,
+                    ...vision_inputs,
+                    do_sample: false,
+                    max_new_tokens: 64,
+                    return_dict_in_generate: true,
                 });
 
                 // Decode output
-                const result = processor.batch_decode(
-                  outputs.slice(null, [inputs.input_ids.dims.at(-1), null]),
-                  { skip_special_tokens: true },
+                const answer = tokenizer.decode(
+                    sequences.slice(0, [text_inputs.input_ids.dims[1], null]),
+                    { skip_special_tokens: true },
                 );
-                console.log(result[0]);
+                console.log(answer);
                 
                 // Display results
-                resultText.textContent = JSON.stringify(result[0], null, 2);
+                resultText.textContent = JSON.stringify(answer, null, 2);
             } catch (error) {
                 console.error('Processing Error:', error);
                 resultText.textContent = `Error: ${error.message}`;
