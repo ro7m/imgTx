@@ -143,7 +143,7 @@
                 // Perform inference
                 const outputs = await model.generate({
                   ...inputs,
-                  max_new_tokens: 512,
+                  max_new_tokens: 128,
                 });
 
                 // Decode output
@@ -151,7 +151,7 @@
                   outputs.slice(null, [inputs.input_ids.dims.at(-1), null]),
                   { skip_special_tokens: true },
                 );
-                console.log(decoded[0]);
+                console.log(result[0]);
                 
                 // Display results
                 resultText.textContent = JSON.stringify(result[0], null, 2);
