@@ -136,7 +136,7 @@
             processBtn.disabled = true;
 
             try {
-                const image = await RawImage.read(imageUrl).resize(448, 448);
+                const image = await (await RawImage.read(imageUrl)).resize(448, 448);
                 const text = processor.apply_chat_template(conversation, { add_generation_prompt: true });
                 const inputs = await processor(text, image);
 
