@@ -76,7 +76,7 @@
 
                 // Initialize pipeline
 
-                model = await MgpstrForSceneTextRecognition.from_pretrained(model_id);
+                model = await MgpstrForSceneTextRecognition.from_pretrained(model_id, { dtype: "fp16" });
                 processor = await MgpstrProcessor.from_pretrained(model_id);
 
             
