@@ -67,7 +67,7 @@
         let model = null;
         let processor = null;
         let tokenizer = null;
-        const prompt = 'you will be presented with some posters containing pricing data for money transfer , read the sender and reciever country and the transfer rates and any offer details in the image. try to read all the text , but dont try and guess the rates , say you couldnot read the text well in case you find some parts of the image unreadable, a tabluar format data output would be nice. now based on this context tell me What is the text in the image?';
+        const prompt = 'you are a AI assistant trained to read text in images. You will be presented with images containing rates for money transfer , read the country names and the prices and try to see if there are any metions of the word offer on the page, if extract those details. try to read as much text as possible, but dont try and guess the rates , say you couldnot read the text well in case you find some parts of the image unreadable. now based on this context tell me What is the text in the image?';
         const messages = [
             { role: 'system', content: 'Answer the question.' },
             { role: 'user', content: `<image>\n${prompt}` }
