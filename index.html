@@ -68,6 +68,15 @@
         // State
         let model = null;
         let processor = null;
+        const conversation = [
+                  {
+                    role: "user",
+                    content: [
+                      { type: "image" },
+                      { type: "text", text: "what is the text in this image.Please only give the text nothing else, use line breaks as they appear in the image" },
+                    ],
+                  },
+                ];
 
         // Initialize the OCR pipeline
         async function initPipeline() {
@@ -79,19 +88,8 @@
                 // Initialize pipeline
 
                 // Load processor and model
-                const processor = await AutoProcessor.from_pretrained(model_id);
-                const model = await Qwen2VLForConditionalGeneration.from_pretrained(model_id);
-                const conversation = [
-                  {
-                    role: "user",
-                    content: [
-                      { type: "image" },
-                      { type: "text", text: "what is the text in this image.Please only give the text nothing else, use line breaks as they appear in the image" },
-                    ],
-                  },
-                ];
-            
-
+                processor = await AutoProcessor.from_pretrained(model_id);
+                model = await Qwen2VLForConditionalGeneration.from_pretrained(model_id);
                 // Enable UI elements
                 imageUpload.disabled = false;
                 libraryStatus.textContent = 'Model Loaded!!!!';
