@@ -51,7 +51,8 @@
 
     <script type="module">
         // Import Transformers directly as a module
-        import { MgpstrForSceneTextRecognition, MgpstrProcessor, RawImage } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.1.0/+esm';
+
+        import { AutoProcessor, Qwen2VLForConditionalGeneration, RawImage } from "@huggingface/transformers";
 
         // DOM Elements
         const libraryStatus = document.getElementById('libraryStatus');
@@ -60,7 +61,8 @@
         const processBtn = document.getElementById('processBtn');
         const loadingIndicator = document.getElementById('loadingIndicator');
         const resultText = document.getElementById('resultText');
-        const model_id = 'onnx-community/mgp-str-base';
+        const model_id = "onnx-community/Qwen2-VL-2B-Instruct";
+
 
 
         // State
@@ -76,9 +78,18 @@
 
                 // Initialize pipeline
 
-                model = await MgpstrForSceneTextRecognition.from_pretrained(model_id, { dtype: "fp16" });
-                processor = await MgpstrProcessor.from_pretrained(model_id, { dtype: "fp16" });
-
+                // Load processor and model
+                const processor = await AutoProcessor.from_pretrained(model_id);
+                const model = await Qwen2VLForConditionalGeneration.from_pretrained(model_id);
+                const conversation = [
+                  {
+                    role: "user",
+                    content: [
+                      { type: "image" },
+                      { type: "text", text: "what is the text in this image.Please only give the text nothing else, use line breaks as they appear in the image" },
+                    ],
+                  },
+                ];
             
 
                 // Enable UI elements
@@ -127,13 +138,25 @@
             processBtn.disabled = true;
 
             try {
-                const image = await RawImage.read(imageUrl);
-                const processed = await processor(image);
-                const outputs =  await model(processed);
-                const result = processor.batch_decode(outputs.logits).generated_text;
+                const image = await RawImage.read(imageUrl).resize(448, 448);
+                const text = processor.apply_chat_template(conversation, { add_generation_prompt: true });
+                const inputs = await processor(text, image);
+
+                // Perform inference
+                const outputs = await model.generate({
+                  ...inputs,
+                  max_new_tokens: 512,
+                });
+
+                // Decode output
+                const result = processor.batch_decode(
+                  outputs.slice(null, [inputs.input_ids.dims.at(-1), null]),
+                  { skip_special_tokens: true },
+                );
+                console.log(decoded[0]);
                 
                 // Display results
-                resultText.textContent = JSON.stringify(result, null, 2);
+                resultText.textContent = JSON.stringify(result[0], null, 2);
             } catch (error) {
                 console.error('Processing Error:', error);
                 resultText.textContent = `Error: ${error.message}`;
