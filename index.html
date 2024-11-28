@@ -89,7 +89,7 @@
 
                 // Load processor and model
                 processor = await AutoProcessor.from_pretrained(model_id);
-                model = await Qwen2VLForConditionalGeneration.from_pretrained(model_id);
+                model = await Qwen2VLForConditionalGeneration.from_pretrained(model_id,{device:'webgpu',});
                 // Enable UI elements
                 imageUpload.disabled = false;
                 libraryStatus.textContent = 'Model Loaded!!!!';
