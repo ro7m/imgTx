@@ -137,7 +137,7 @@
 
             try {
                 const image = await (await RawImage.read(imageUrl)).resize(448, 448);
-                const text = processor.apply_chat_template(conversation, { add_generation_prompt: false });
+                const text = processor.apply_chat_template(conversation, { add_generation_prompt: true });
                 const inputs = await processor(text, image);
 
                 // Perform inference
