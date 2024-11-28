@@ -67,7 +67,7 @@
         let model = null;
         let processor = null;
         let tokenizer = null;
-        const prompt = 'you are a AI assistant trained to read text in images. You will be presented with images containing rates for money transfer, images may not be clear but you are trained on bad images , so for you that should be piece of cake , try to read as much text as possible , utilize your full potential. now based on this context tell me What is the text in the image?';
+        const prompt = 'What is the text in the image?';
         const messages = [
             { role: 'system', content: 'Answer the question.' },
             { role: 'user', content: `<image>\n${prompt}` }
