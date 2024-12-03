@@ -73,10 +73,11 @@
                     role: "user",
                     content: [
                       { type: "image" },
-                      { type: "text", text: "Please perform OCR (Optical Character Recognition) on the uploaded image and extract all the text. Ensure that the text is accurately transcribed and formatted in a readable manner. If there are any sections of the image that contain text but are difficult to read, please note them in your response." },
-                    ],
+                      { type: "text", text: "Analyze the provided image of pricing for money transfer services. Extract and structure the data into a JSON format with the following fields: Country, Exchange Rate, Service, Currency, Product, and PriceRange.Use the indentation to determine the hierarchy of Services, Products, and PriceRanges. Correct obvious OCR errors and spelling mistakes, Each record in the JSON should follow this structure: {{ \"Country\": string, \"Exchange Rate\": number, \"Service\": string or \"None\",\"Currency\": string,\"Product\": string or \"None\", \"PriceRange\": string or \"None\"}}Rules: 1. Use spatial relationships and indentation to determine the hierarchy: Country > Service > Product > PriceRange. 2. Create separate records for each unique combination of Service, Product, and PriceRange. 3. Maintain the original number of decimal places for exchange rates as shown in the OCR output. 4. Include a Service for all records unless the image contains only Country information. 5. Use \"None\" for Product or PriceRange if not clearly specified. 6. Create separate records for each currency if multiple currencies are present for the same country or service. 7. Correct common OCR errors, such as 'O' to '0', 'l' to '1', etc., while considering the context of financial and geographical terms. 8. Return only a valid JSON array of objects, with no additional text or explanation." }
+                        ,
+                    ], 
                   },
-                ];
+        ];
 
         // Initialize the OCR pipeline
         async function initPipeline() {
